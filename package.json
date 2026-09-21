@@ -1,0 +1,45 @@
+{
+  "name": "ts-in-7-days",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Learn TypeScript in 7 days — an interactive, self-contained web guide with runnable code examples, quizzes, a live playground backed by the real TypeScript compiler, and interview prep.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint ."
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@radix-ui/react-collapsible": "^1.1.11",
+    "@radix-ui/react-progress": "^1.1.7",
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tabs": "^1.1.12",
+    "@radix-ui/react-toast": "^1.2.14",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.2",
+    "lucide-react": "^0.525.0",
+    "next": "^16.1.1",
+    "next-themes": "^0.4.6",
+    "prismjs": "^1.30.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.3.1",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^22",
+    "@types/prismjs": "^1.26.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.1.1",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.5"
+  }
+}
