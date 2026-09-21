@@ -2,6 +2,8 @@
 
 An interactive, self-contained web guide that teaches you TypeScript in 7 days — no book, no course signup, no setup required. Everything you need lives in the app: lessons, runnable code, quizzes, a live playground, and interview prep.
 
+**Live demo: https://typescript-in-7-days-alpha.vercel.app**
+
 ## What's inside
 
 - **7-day curriculum** — 38 lesson sections covering the full path from primitive types to generics, utility types, classes, modules, `tsconfig.json`, and migrating a real JS project.
