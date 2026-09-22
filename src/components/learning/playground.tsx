@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Play,
@@ -22,8 +23,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { playgroundExamples, defaultPlaygroundCode } from "@/lib/curriculum/examples";
-import { highlightCode } from "./code-block";
-import { useIsClient } from "@/hooks/use-is-client";
+import type { TsEditorApi } from "./ts-editor";
+
+const TsEditor = dynamic(() => import("./ts-editor").then((m) => m.TsEditor), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-zinc-950/60" />,
+});
 
 interface DiagnosticItem {
   line: number;
@@ -40,37 +45,15 @@ interface CheckResponse {
   compileMs?: number;
 }
 
-const EDITOR_METRICS =
-  "font-mono text-[13px] leading-[1.65] tracking-normal whitespace-pre";
-
 export function Playground() {
   const [code, setCode] = useState(defaultPlaygroundCode);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<CheckResponse | null>(null);
   const [activeErrorLine, setActiveErrorLine] = useState<number | null>(null);
-  const mounted = useIsClient();
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const preRef = useRef<HTMLPreElement>(null);
-  const gutterRef = useRef<HTMLPreElement>(null);
+  const editorApi = useRef<TsEditorApi | null>(null);
 
   const lineCount = useMemo(() => code.split("\n").length, [code]);
-  const html = useMemo(
-    () => (mounted ? highlightCode(code, "typescript") : null),
-    [code, mounted]
-  );
-
-  const syncScroll = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    if (preRef.current) {
-      preRef.current.scrollTop = ta.scrollTop;
-      preRef.current.scrollLeft = ta.scrollLeft;
-    }
-    if (gutterRef.current) {
-      gutterRef.current.scrollTop = ta.scrollTop;
-    }
-  }, []);
 
   const run = useCallback(async () => {
     if (running) return;
@@ -100,6 +83,9 @@ export function Playground() {
       }
       const data = (await res.json()) as CheckResponse;
       setResult(data);
+      const first =
+        data.diagnostics.find((d) => d.category === "error") ?? data.diagnostics[0] ?? null;
+      setActiveErrorLine(first ? first.line : null);
     } catch {
       setResult({
         diagnostics: [
@@ -119,23 +105,6 @@ export function Playground() {
     }
   }, [code, running]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const ta = e.currentTarget;
-      const { selectionStart, selectionEnd } = ta;
-      const next = code.slice(0, selectionStart) + "  " + code.slice(selectionEnd);
-      setCode(next);
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = selectionStart + 2;
-      });
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      void run();
-    }
-  };
-
   const loadExample = (exampleId: string) => {
     if (exampleId === "default") {
       setCode(defaultPlaygroundCode);
@@ -152,14 +121,7 @@ export function Playground() {
 
   const jumpToLine = (line: number) => {
     setActiveErrorLine(line);
-    const ta = textareaRef.current;
-    if (ta) {
-      // scroll textarea so that the line is visible (approximate line height 21.45px)
-      const lineHeight = 13 * 1.65;
-      ta.scrollTop = Math.max(0, (line - 3) * lineHeight);
-      syncScroll();
-      ta.focus();
-    }
+    editorApi.current?.jumpToLine(line);
   };
 
   return (
@@ -208,57 +170,30 @@ export function Playground() {
           </div>
         </div>
 
-        <div className="relative h-[420px] sm:h-[520px] overflow-hidden">
-          <div className="absolute inset-0 flex">
-            <pre
-              ref={gutterRef}
-              aria-hidden="true"
-              className={cn(
-                EDITOR_METRICS,
-                "code-gutter w-11 shrink-0 overflow-hidden border-r border-zinc-800/60 bg-zinc-900/40 py-4 text-right text-zinc-600 select-none"
-              )}
-            >
-              {Array.from({ length: lineCount }, (_, i) => `${i + 1}`).join("\n")}
-            </pre>
-            <div className="relative min-w-0 flex-1">
-              <pre
-                ref={preRef}
-                aria-hidden="true"
-                className={cn(
-                  EDITOR_METRICS,
-                  "pointer-events-none absolute inset-0 overflow-hidden px-4 py-4 text-zinc-200"
-                )}
-              >
-                <code
-                  className="block"
-                  dangerouslySetInnerHTML={{ __html: html ?? escapeForFallback(code) }}
-                />
-              </pre>
-              <textarea
-                ref={textareaRef}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                onScroll={syncScroll}
-                onKeyDown={handleKeyDown}
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                aria-label="TypeScript code editor"
-                className={cn(
-                  EDITOR_METRICS,
-                  "absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent px-4 py-4 text-transparent caret-emerald-400 outline-none"
-                )}
-                style={{ tabSize: 2 }}
-              />
-            </div>
-          </div>
+        <div
+          className="h-[420px] sm:h-[520px]"
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              void run();
+            }
+          }}
+        >
+          <TsEditor
+            value={code}
+            onChange={setCode}
+            errorLine={activeErrorLine}
+            onReady={(api) => {
+              editorApi.current = api;
+            }}
+          />
         </div>
         <div className="flex items-center justify-between border-t border-zinc-800/80 bg-zinc-900/50 px-4 py-1.5">
           <p className="font-mono text-[10px] text-zinc-500">
-            {lineCount} lines · Ctrl/Cmd+Enter to run · Tab indents 2 spaces
+            {lineCount} lines · Tab indents · Ctrl/Cmd+Enter to run
           </p>
           <p className="hidden font-mono text-[10px] text-zinc-500 sm:block">
-            checked by a real tsc on the server
+            autocomplete · auto-close brackets · real tsc on the server
           </p>
         </div>
       </div>
@@ -414,11 +349,4 @@ export function Playground() {
       </div>
     </div>
   );
-}
-
-function escapeForFallback(code: string): string {
-  return code
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
