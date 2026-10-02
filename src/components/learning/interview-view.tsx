@@ -6,20 +6,26 @@ import { ChevronDown, Eye, Mic, MessageSquareQuote, Sparkles } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { interviewQuestions, interviewCategories } from "@/lib/curriculum";
+import { interviewCategories } from "@/lib/curriculum";
+import { useT, useLocalizedInterview } from "@/lib/i18n";
+import { interviewCategoriesBn } from "@/lib/i18n/bn/interview";
 import { renderRichText } from "@/lib/rich-text";
 import { CodeBlock } from "./code-block";
 
 export function InterviewView() {
+  const { lang, t } = useT();
+  const questions = useLocalizedInterview();
+  const bn = lang === "bn";
+  const bengaliClass = bn ? "font-bengali" : undefined;
   const [category, setCategory] = useState("All");
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
-  const questions = useMemo(
+  const filtered = useMemo(
     () =>
       category === "All"
-        ? interviewQuestions
-        : interviewQuestions.filter((q) => q.category === category),
-    [category]
+        ? questions
+        : questions.filter((q) => q.category === category),
+    [category, questions]
   );
 
   const revealedCount = Object.values(revealed).filter(Boolean).length;
@@ -37,18 +43,17 @@ export function InterviewView() {
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-8 sm:px-6 lg:pt-12">
       <header>
-        <Badge variant="secondary" className="gap-1.5 rounded-full px-3 py-1 text-xs">
+        <Badge variant="secondary" className={cn("gap-1.5 rounded-full px-3 py-1 text-xs", bengaliClass)}>
           <Mic className="h-3 w-3" aria-hidden="true" />
-          Day 7 protocol: answer out loud first
+          {t.interview.badge}
         </Badge>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Interview prep — all 15 questions
+        <h1 className={cn("mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl", bengaliClass)}>
+          {t.interview.title(questions.length)}
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
-          For each question: say your answer out loud in 2–3 sentences{" "}
-          <span className="font-semibold text-foreground">before</span> revealing the model —
-          the struggle is what encodes it. Grade yourself against the three beats: definition,
-          why it matters, tiny example.
+        <p className={cn("mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground", bengaliClass)}>
+          {t.interview.introA}{" "}
+          <span className="font-semibold text-foreground">{t.interview.introB}</span>{" "}
+          {t.interview.introC}
         </p>
       </header>
 
@@ -67,10 +72,10 @@ export function InterviewView() {
             )}
             aria-pressed={category === cat}
           >
-            {cat}
+            <span className={bengaliClass}>{bn ? (interviewCategoriesBn[cat] ?? cat) : cat}</span>
             {cat !== "All" && (
               <span className="ml-1.5 text-[10px] opacity-60">
-                {interviewQuestions.filter((q) => q.category === cat).length}
+                {questions.filter((q) => q.category === cat).length}
               </span>
             )}
           </button>
@@ -78,24 +83,23 @@ export function InterviewView() {
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
-        <p className="text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{revealedCount}</span> of{" "}
-          {questions.length} revealed in this filter · {interviewQuestions.length} total
+        <p className={cn("text-xs text-muted-foreground", bengaliClass)}>
+          {t.interview.revealed(revealedCount, filtered.length, questions.length)}
         </p>
         <Button
           variant="ghost"
           size="sm"
           onClick={revealAll}
-          className="h-8 gap-1.5 text-xs"
+          className={cn("h-8 gap-1.5 text-xs", bengaliClass)}
         >
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-          Reveal all
+          {t.interview.revealAll}
         </Button>
       </div>
 
       {/* Questions */}
       <div className="mt-6 space-y-4">
-        {questions.map((q, i) => {
+        {filtered.map((q, i) => {
           const open = revealed[q.id] ?? false;
           return (
             <motion.article
@@ -118,15 +122,15 @@ export function InterviewView() {
                   {q.number}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[15px] font-semibold leading-snug text-foreground">
+                  <h2 className={cn("text-[15px] font-semibold leading-snug text-foreground", bengaliClass)}>
                     {q.question}
                   </h2>
                   <div className="mt-1.5 flex items-center gap-2">
-                    <Badge variant="outline" className="h-5 rounded-full px-2 text-[10px] font-normal text-muted-foreground">
-                      {q.category}
+                    <Badge variant="outline" className={cn("h-5 rounded-full px-2 text-[10px] font-normal text-muted-foreground", bengaliClass)}>
+                      {bn ? (interviewCategoriesBn[q.category] ?? q.category) : q.category}
                     </Badge>
-                    <span className="text-[11px] text-muted-foreground">
-                      {open ? "click to hide the model answer" : "click after answering aloud"}
+                    <span className={cn("text-[11px] text-muted-foreground", bengaliClass)}>
+                      {open ? t.interview.clickHide : t.interview.clickShow}
                     </span>
                   </div>
                 </div>
@@ -156,10 +160,10 @@ export function InterviewView() {
                           aria-hidden="true"
                         />
                         <div>
-                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                            Say this — the 2–3 sentence model answer
+                          <p className={cn("mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400", bengaliClass)}>
+                            {t.interview.model}
                           </p>
-                          <p className="text-sm leading-relaxed text-foreground/90">
+                          <p className={cn("text-sm leading-relaxed text-foreground/90", bengaliClass)}>
                             {renderRichText(q.shortAnswer)}
                           </p>
                         </div>
@@ -169,7 +173,7 @@ export function InterviewView() {
                       {q.detail.length > 0 && (
                         <div className="space-y-2.5 px-1">
                           {q.detail.map((paragraph, j) => (
-                            <p key={j} className="text-sm leading-relaxed text-muted-foreground">
+                            <p key={j} className={cn("text-sm leading-relaxed text-muted-foreground", bengaliClass)}>
                               {renderRichText(paragraph)}
                             </p>
                           ))}
@@ -178,7 +182,7 @@ export function InterviewView() {
 
                       {/* Code */}
                       {q.code && (
-                        <CodeBlock code={q.code} variant="neutral" title={`answer-${q.number}.ts`} />
+                        <CodeBlock code={q.code} variant="neutral" title={t.interview.answerName(q.number)} />
                       )}
 
                       {/* Gotcha */}
@@ -188,7 +192,7 @@ export function InterviewView() {
                             className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
                             aria-hidden="true"
                           />
-                          <p className="text-sm leading-relaxed text-muted-foreground">
+                          <p className={cn("text-sm leading-relaxed text-muted-foreground", bengaliClass)}>
                             {renderRichText(q.gotcha)}
                           </p>
                         </div>

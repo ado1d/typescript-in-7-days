@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, RotateCcw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { QuizQuestion } from "@/lib/curriculum/types";
 
 interface QuizProps {
@@ -14,6 +15,9 @@ interface QuizProps {
 }
 
 export function Quiz({ dayId, questions, onComplete }: QuizProps) {
+  const { lang, t } = useT();
+  const bn = lang === "bn";
+  const bengaliClass = bn ? "font-bengali" : undefined;
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [answered, setAnswered] = useState<Record<string, boolean>>({});
   const [finished, setFinished] = useState(false);
@@ -54,18 +58,18 @@ export function Quiz({ dayId, questions, onComplete }: QuizProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          {answeredCount}/{questions.length} answered
+        <p className={cn("text-sm text-muted-foreground", bengaliClass)}>
+          {t.quiz.answered(answeredCount, questions.length)}
           {answeredCount > 0 && (
-            <span className="ml-2 font-medium text-foreground">
-              · {correctCount} correct
+            <span className={cn("ml-2 font-medium text-foreground", bengaliClass)}>
+              {t.quiz.correct(correctCount)}
             </span>
           )}
         </p>
         {answeredCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={reset} className="h-8 gap-1.5 text-xs">
+          <Button variant="ghost" size="sm" onClick={reset} className={cn("h-8 gap-1.5 text-xs", bengaliClass)}>
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            Reset quiz
+            {t.quiz.reset}
           </Button>
         )}
       </div>
@@ -80,7 +84,7 @@ export function Quiz({ dayId, questions, onComplete }: QuizProps) {
             className="rounded-xl border bg-card p-4 sm:p-5"
             aria-label={`Question ${qi + 1}`}
           >
-            <p className="mb-3 flex items-start gap-2.5 text-sm font-medium leading-relaxed">
+            <p className={cn("mb-3 flex items-start gap-2.5 text-sm font-medium leading-relaxed", bengaliClass)}>
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 font-mono text-[11px] text-primary">
                 {qi + 1}
               </span>
@@ -116,7 +120,7 @@ export function Quiz({ dayId, questions, onComplete }: QuizProps) {
                     >
                       {String.fromCharCode(65 + oi)}
                     </span>
-                    <span className="flex-1">{option}</span>
+                    <span className={cn("flex-1", bengaliClass)}>{option}</span>
                     {isAnswered && isRight && (
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
                     )}
@@ -142,10 +146,10 @@ export function Quiz({ dayId, questions, onComplete }: QuizProps) {
                         : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300"
                     )}
                   >
-                    <span className="font-semibold">
-                      {isCorrect ? "Correct. " : "Not quite. "}
+                    <span className={cn("font-semibold", bengaliClass)}>
+                      {isCorrect ? t.quiz.yes : t.quiz.no}
                     </span>
-                    {q.explanation}
+                    <span className={bengaliClass}>{q.explanation}</span>
                   </div>
                 </motion.div>
               )}
@@ -175,13 +179,11 @@ export function Quiz({ dayId, questions, onComplete }: QuizProps) {
               aria-hidden="true"
             />
             <div>
-              <p className="text-sm font-semibold">
-                Day {dayId} quiz: {correctCount}/{questions.length} correct
+              <p className={cn("text-sm font-semibold", bengaliClass)}>
+                {t.quiz.resultTitle(dayId, correctCount, questions.length)}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {correctCount === questions.length
-                  ? "Perfect — this day's concepts are locked in. Mark the day complete and move on."
-                  : "Missed ones are your review list — reread the matching section above, then reset and retry."}
+              <p className={cn("text-xs text-muted-foreground", bengaliClass)}>
+                {correctCount === questions.length ? t.quiz.perfect : t.quiz.missed}
               </p>
             </div>
           </motion.div>

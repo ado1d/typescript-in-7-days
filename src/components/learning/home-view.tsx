@@ -18,14 +18,19 @@ import {
   ShieldAlert,
   Trophy,
   ExternalLink,
+  Sparkles,
+  Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { curriculum, courseStats, interviewQuestions } from "@/lib/curriculum";
+import { curriculum, totalSections, totalCodeExamples, totalQuizQuestions } from "@/lib/curriculum";
+import { useT, useLocalizedCurriculum } from "@/lib/i18n";
 import type { ProgressState } from "@/lib/progress";
+
+const featureIcons = [Keyboard, Compass, BookOpen, ShieldAlert, Sparkles, Languages];
 
 const dayIconMap = {
   setup: TerminalSquare,
@@ -37,52 +42,6 @@ const dayIconMap = {
   target: Target,
 } as const;
 
-const features = [
-  {
-    icon: Keyboard,
-    title: "Type, break, fix",
-    body: "Every lesson pairs compilable examples with deliberately broken ones. You learn by reading real tsc errors — exactly the plan's method.",
-  },
-  {
-    icon: Compass,
-    title: "The full 7-day path",
-    body: "Setup, types, interfaces, narrowing, generics, utilities, classes, and interview prep — every bullet from the plan expanded into lessons.",
-  },
-  {
-    icon: BookOpen,
-    title: "15 interview questions",
-    body: "Model answers in the 2-3 sentence format, with code and gotchas. Study mode: attempt out loud, then reveal.",
-  },
-  {
-    icon: ShieldAlert,
-    title: "A real compiler playground",
-    body: "The playground type-checks your code with actual tsc on the server, shows the emitted JavaScript, and runs your console output.",
-  },
-];
-
-const tips = [
-  {
-    icon: Keyboard,
-    title: "Type everything by hand",
-    body: "Reading is not learning. Copy nothing — retype every example, then break it on purpose and fix the red squiggles. That struggle is where the learning happens.",
-  },
-  {
-    icon: Clock,
-    title: "2–3 hours a day is enough",
-    body: "The plan is calibrated for a week of evenings. Consistency beats marathons: 20 minutes of typing code beats 3 hours of reading docs.",
-  },
-  {
-    icon: ShieldAlert,
-    title: "Skip the advanced rabbit hole",
-    body: "Complex conditional types, template literal types, decorators — they rarely appear in basic interviews. Recognize them; do not master them.",
-  },
-  {
-    icon: ExternalLink,
-    title: "Free resources",
-    body: "The official TypeScript Handbook (typescriptlang.org/docs), Matt Pocock's free tutorials (totaltypescript.com), and the Playground (typescriptlang.org/play).",
-  },
-];
-
 interface HomeViewProps {
   progress: ProgressState;
   ready: boolean;
@@ -91,9 +50,18 @@ interface HomeViewProps {
 }
 
 export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewProps) {
+  const { lang, t } = useT();
+  const localized = useLocalizedCurriculum();
+
   const completedCount = ready ? progress.completedDays.length : 0;
   const overallPercent = Math.round((completedCount / curriculum.length) * 100);
-  const nextDay = curriculum.find((d) => !progress.completedDays.includes(d.id)) ?? curriculum[0];
+  const nextDay = localized.find((d) => !progress.completedDays.includes(d.id)) ?? localized[0];
+
+  const bn = lang === "bn";
+  const bengaliClass = bn ? "font-bengali" : undefined;
+
+  const features = t.homeFeatures.map((f, i) => ({ ...f, icon: featureIcons[i] ?? Keyboard }));
+  const tips = t.homeTips.map((tip, i) => ({ ...tip, icon: [Keyboard, Clock, ShieldAlert, ExternalLink][i] ?? Keyboard }));
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 lg:pt-12">
@@ -104,35 +72,34 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Badge variant="secondary" className="mb-4 gap-1.5 rounded-full px-3 py-1 text-xs">
+          <Badge variant="secondary" className={cn("mb-4 gap-1.5 rounded-full px-3 py-1 text-xs", bengaliClass)}>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-            7 days · 2–3 hours a day · assumes basic JavaScript
+            {t.home.badge}
           </Badge>
-          <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-            Learn <span className="text-emerald-600 dark:text-emerald-400">TypeScript</span> in
-            7 Days
+          <h1 className={cn("mx-auto max-w-3xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl", bengaliClass)}>
+            {t.home.titleA}{" "}
+            <span className="text-emerald-600 dark:text-emerald-400">{t.home.titleB}</span>{" "}
+            {t.home.titleC}
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            A complete, self-contained course: every concept from the plan expanded into lessons
-            with good code, deliberately broken code, quizzes, and a live compiler playground.
-            Learn just by browsing — no setup required to start.
+          <p className={cn("mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg", bengaliClass)}>
+            {t.home.body}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button
               size="lg"
               onClick={() => onStartDay(nextDay.id)}
-              className="h-11 gap-2 bg-emerald-600 px-6 text-white hover:bg-emerald-500"
+              className={cn("h-11 gap-2 bg-emerald-600 px-6 text-white hover:bg-emerald-500", bengaliClass)}
             >
-              {completedCount === 0 ? "Start Day 1" : `Continue with Day ${nextDay.id}`}
+              {completedCount === 0 ? t.home.start : t.home.continue(nextDay.id)}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button
               size="lg"
               variant="outline"
               onClick={() => onOpenView("playground")}
-              className="h-11 gap-2 px-6"
+              className={cn("h-11 gap-2 px-6", bengaliClass)}
             >
-              Try the playground
+              {t.home.tryPlayground}
             </Button>
           </div>
         </motion.div>
@@ -144,12 +111,19 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
           transition={{ delay: 0.15, duration: 0.5 }}
           className="mx-auto mt-10 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4"
         >
-          {courseStats.map((stat) => (
+          {[
+            { label: bn ? "দিন" : "days", value: curriculum.length },
+            { label: bn ? "পাঠ" : "lessons", value: totalSections },
+            { label: bn ? "কোড উদাহরণ" : "code examples", value: totalCodeExamples },
+            { label: bn ? "কুইজ প্রশ্ন" : "quiz questions", value: totalQuizQuestions },
+          ].map((stat) => (
             <div
               key={stat.label}
-              className="rounded-xl border bg-card px-3 py-4 text-center"
+              className={cn("rounded-xl border bg-card px-3 py-4 text-center", bengaliClass)}
             >
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              <p className="text-2xl font-bold text-foreground">
+                {bn ? String(stat.value).replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[+d]) : stat.value}
+              </p>
               <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
             </div>
           ))}
@@ -158,14 +132,14 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
 
       {/* Progress */}
       {ready && completedCount > 0 && (
-        <section className="mt-12" aria-label="Your progress">
+        <section className="mt-12" aria-label={t.home.progress}>
           <Card>
             <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
               <div className="flex-1">
-                <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="font-medium">Your progress</span>
+                <div className={cn("mb-2 flex items-center justify-between text-sm", bengaliClass)}>
+                  <span className="font-medium">{t.home.progress}</span>
                   <span className="text-muted-foreground">
-                    {completedCount}/{curriculum.length} days · {overallPercent}%
+                    {t.home.progressCount(completedCount, curriculum.length, overallPercent)}
                   </span>
                 </div>
                 <Progress value={overallPercent} className="h-2" />
@@ -173,13 +147,11 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
               <Button
                 onClick={() => onOpenView("interview")}
                 variant="outline"
-                className="gap-2"
+                className={cn("gap-2", bengaliClass)}
               >
                 <Trophy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                Interview prep
-                <span className="text-muted-foreground">
-                  {interviewQuestions.length} Qs
-                </span>
+                {t.home.interviewPrep}
+                <span className="text-muted-foreground">{t.home.qs(15)}</span>
               </Button>
             </CardContent>
           </Card>
@@ -187,17 +159,19 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
       )}
 
       {/* Roadmap */}
-      <section className="mt-14" aria-label="The 7-day roadmap">
+      <section className="mt-14" aria-label={t.home.roadmapTitle}>
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">The roadmap</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Each day: lessons → code you can break → quiz → practice exercise.
+            <h2 className={cn("text-2xl font-bold tracking-tight text-foreground", bengaliClass)}>
+              {t.home.roadmapTitle}
+            </h2>
+            <p className={cn("mt-1 text-sm text-muted-foreground", bengaliClass)}>
+              {t.home.roadmapSub}
             </p>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {curriculum.map((day, i) => {
+          {localized.map((day, i) => {
             const Icon = dayIconMap[day.icon];
             const complete = ready && progress.completedDays.includes(day.id);
             return (
@@ -226,27 +200,27 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-muted-foreground">
-                        DAY {day.id}
+                      <span className={cn("font-mono text-xs font-semibold text-muted-foreground", bengaliClass)}>
+                        {t.home.dayLabel(day.id)}
                       </span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className={cn("flex items-center gap-1 text-xs text-muted-foreground", bengaliClass)}>
                         <Clock className="h-3 w-3" aria-hidden="true" />
                         {day.hours}
                       </span>
                       {complete && (
                         <CheckCircle2
                           className="ml-auto h-4 w-4 shrink-0 text-emerald-500"
-                          aria-label="Completed"
+                          aria-label={t.home.completed}
                         />
                       )}
                     </div>
-                    <h3 className="mt-1 font-semibold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400">
+                    <h3 className={cn("mt-1 font-semibold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400", bengaliClass)}>
                       {day.title}
                     </h3>
-                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                    <p className={cn("mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground", bengaliClass)}>
                       {day.subtitle}
                     </p>
-                    <p className="mt-3 flex flex-wrap gap-1.5">
+                    <p className={cn("mt-3 flex flex-wrap gap-1.5", bengaliClass)}>
                       {day.sections.slice(0, 3).map((s) => (
                         <span
                           key={s.id}
@@ -256,7 +230,7 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
                         </span>
                       ))}
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        +{day.sections.length - 3 > 0 ? day.sections.length - 3 : 0} more
+                        {t.home.more(Math.max(day.sections.length - 3, 0))}
                       </span>
                     </p>
                   </div>
@@ -268,8 +242,10 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
       </section>
 
       {/* What's inside */}
-      <section className="mt-14" aria-label="What is inside">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">What is inside</h2>
+      <section className="mt-14" aria-label={t.home.insideTitle}>
+        <h2 className={cn("text-2xl font-bold tracking-tight text-foreground", bengaliClass)}>
+          {t.home.insideTitle}
+        </h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {features.map((f) => (
             <Card key={f.title} className="border-border/70">
@@ -278,8 +254,10 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
                   <f.icon className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">{f.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
+                  <h3 className={cn("font-semibold text-foreground", bengaliClass)}>{f.title}</h3>
+                  <p className={cn("mt-1 text-sm leading-relaxed text-muted-foreground", bengaliClass)}>
+                    {f.body}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -288,9 +266,9 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
       </section>
 
       {/* Tips */}
-      <section className="mt-14" aria-label="Survival tips">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          The plan's survival tips
+      <section className="mt-14" aria-label={t.home.tipsTitle}>
+        <h2 className={cn("text-2xl font-bold tracking-tight text-foreground", bengaliClass)}>
+          {t.home.tipsTitle}
         </h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {tips.map((tip) => (
@@ -300,9 +278,11 @@ export function HomeView({ progress, ready, onStartDay, onOpenView }: HomeViewPr
                   className="h-4 w-4 text-primary"
                   aria-hidden="true"
                 />
-                <h3 className="font-semibold text-foreground">{tip.title}</h3>
+                <h3 className={cn("font-semibold text-foreground", bengaliClass)}>{tip.title}</h3>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{tip.body}</p>
+              <p className={cn("mt-2 text-sm leading-relaxed text-muted-foreground", bengaliClass)}>
+                {tip.body}
+              </p>
             </div>
           ))}
         </div>

@@ -14,7 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { cheatsheet } from "@/lib/curriculum";
+import { useT, useLocalizedCheatsheet } from "@/lib/i18n";
 import { CodeBlock } from "./code-block";
 
 const iconMap = {
@@ -29,6 +29,10 @@ const iconMap = {
 } as const;
 
 export function CheatsheetView() {
+  const { lang, t } = useT();
+  const cheatsheet = useLocalizedCheatsheet();
+  const bn = lang === "bn";
+  const bengaliClass = bn ? "font-bengali" : undefined;
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState(cheatsheet[0].id);
 
@@ -48,12 +52,11 @@ export function CheatsheetView() {
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 lg:pt-12">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Cheatsheet
+        <h1 className={cn("text-3xl font-bold tracking-tight text-foreground sm:text-4xl", bengaliClass)}>
+          {t.cheatsheet.title}
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
-          The whole week compressed into copy-paste-ready snippets. Skim it before an interview,
-          keep it open while coding.
+        <p className={cn("mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground", bengaliClass)}>
+          {t.cheatsheet.body}
         </p>
       </header>
 
@@ -67,8 +70,8 @@ export function CheatsheetView() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search snippets (e.g. keyof, Partial, switch…)"
-          aria-label="Search cheatsheet"
+          placeholder={t.cheatsheet.searchPlaceholder}
+          aria-label={t.cheatsheet.searchLabel}
           className="h-11 w-full rounded-xl border bg-background pl-9 pr-4 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-emerald-500/50"
         />
       </div>
@@ -77,13 +80,13 @@ export function CheatsheetView() {
         /* Search results — flat list */
         <div className="mt-6 space-y-8">
           {filtered.length === 0 && (
-            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No snippets match &quot;{query}&quot; — try keyof, Partial, generics, enum, readonly…
+            <p className={cn("rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground", bengaliClass)}>
+              {t.cheatsheet.empty(query)}
             </p>
           )}
           {filtered.map((cat) => (
             <section key={cat.id}>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <h2 className={cn("mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground", bengaliClass)}>
                 {(() => {
                   const Icon = iconMap[cat.icon];
                   return <Icon className="h-4 w-4" aria-hidden="true" />;
@@ -93,10 +96,10 @@ export function CheatsheetView() {
               <div className="space-y-5">
                 {cat.items.map((item) => (
                   <div key={item.title}>
-                    <p className="mb-1.5 text-sm font-medium text-foreground">{item.title}</p>
+                    <p className={cn("mb-1.5 text-sm font-medium text-foreground", bengaliClass)}>{item.title}</p>
                     <CodeBlock code={item.code} variant="neutral" />
                     {item.note && (
-                      <p className="mt-1.5 px-1 text-xs text-muted-foreground">{item.note}</p>
+                      <p className={cn("mt-1.5 px-1 text-xs text-muted-foreground", bengaliClass)}>{item.note}</p>
                     )}
                   </div>
                 ))}
@@ -107,7 +110,7 @@ export function CheatsheetView() {
       ) : (
         <div className="mt-8 grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
           {/* Category nav */}
-          <aside aria-label="Cheatsheet categories">
+          <aside aria-label={t.cheatsheet.categories}>
             <div className="sticky top-24 space-y-1">
               {cheatsheet.map((cat) => {
                 const Icon = iconMap[cat.icon];
@@ -130,7 +133,7 @@ export function CheatsheetView() {
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {cat.title}
+                    <span className={bengaliClass}>{cat.title}</span>
                     <span className="ml-auto font-mono text-[10px] opacity-60">
                       {cat.items.length}
                     </span>
@@ -152,7 +155,7 @@ export function CheatsheetView() {
                 viewport={{ once: true, margin: "-40px" }}
                 transition={{ duration: 0.3, delay: Math.min(ci * 0.04, 0.2) }}
               >
-                <h2 className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-foreground">
+                <h2 className={cn("flex items-center gap-2.5 text-xl font-bold tracking-tight text-foreground", bengaliClass)}>
                   {(() => {
                     const Icon = iconMap[cat.icon];
                     return (
@@ -166,10 +169,10 @@ export function CheatsheetView() {
                 <div className="mt-4 space-y-5">
                   {cat.items.map((item) => (
                     <div key={item.title}>
-                      <p className="mb-1.5 text-sm font-medium text-foreground">{item.title}</p>
+                      <p className={cn("mb-1.5 text-sm font-medium text-foreground", bengaliClass)}>{item.title}</p>
                       <CodeBlock code={item.code} variant="neutral" />
                       {item.note && (
-                        <p className="mt-1.5 px-1 text-xs text-muted-foreground">{item.note}</p>
+                        <p className={cn("mt-1.5 px-1 text-xs text-muted-foreground", bengaliClass)}>{item.note}</p>
                       )}
                     </div>
                   ))}

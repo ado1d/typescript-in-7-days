@@ -23,6 +23,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { playgroundExamples, defaultPlaygroundCode } from "@/lib/curriculum/examples";
+import { useT, useLocalizedExamples } from "@/lib/i18n";
 import type { TsEditorApi } from "./ts-editor";
 
 const TsEditor = dynamic(() => import("./ts-editor").then((m) => m.TsEditor), {
@@ -46,6 +47,10 @@ interface CheckResponse {
 }
 
 export function Playground() {
+  const { lang, t } = useT();
+  const localizedExamples = useLocalizedExamples();
+  const bn = lang === "bn";
+  const bengaliClass = bn ? "font-bengali" : undefined;
   const [code, setCode] = useState(defaultPlaygroundCode);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<CheckResponse | null>(null);
@@ -109,7 +114,7 @@ export function Playground() {
     if (exampleId === "default") {
       setCode(defaultPlaygroundCode);
     } else {
-      const example = playgroundExamples.find((e) => e.id === exampleId);
+      const example = localizedExamples.find((e) => e.id === exampleId);
       if (example) setCode(example.code);
     }
     setResult(null);
@@ -139,16 +144,16 @@ export function Playground() {
             <div className="w-[180px] sm:w-[230px]">
               <Select onValueChange={loadExample}>
                 <SelectTrigger className="h-8 border-zinc-700 bg-zinc-900 text-xs text-zinc-300">
-                  <SelectValue placeholder="Load an example" />
+                  <SelectValue placeholder={t.playground.loadExample} />
                   <ChevronDown className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
-                  <SelectItem value="default" className="text-xs">
-                    Default tour — start here
+                  <SelectItem value="default" className={cn("text-xs", bengaliClass)}>
+                    {bn ? "ডিফল্ট ট্যুর — এখান থেকে শুরু" : "Default tour — start here"}
                   </SelectItem>
-                  {playgroundExamples.map((ex) => (
-                    <SelectItem key={ex.id} value={ex.id} className="text-xs">
-                      Day {ex.day} · {ex.title}
+                  {localizedExamples.map((ex) => (
+                    <SelectItem key={ex.id} value={ex.id} className={cn("text-xs", bengaliClass)}>
+                      {bn ? "দিন" : "Day"} {ex.day} · {ex.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -165,7 +170,7 @@ export function Playground() {
               ) : (
                 <Play className="h-3.5 w-3.5" aria-hidden="true" />
               )}
-              Run
+              <span className={bengaliClass}>{running ? t.playground.running : t.playground.run}</span>
             </Button>
           </div>
         </div>
@@ -189,11 +194,11 @@ export function Playground() {
           />
         </div>
         <div className="flex items-center justify-between border-t border-zinc-800/80 bg-zinc-900/50 px-4 py-1.5">
-          <p className="font-mono text-[10px] text-zinc-500">
-            {lineCount} lines · Tab indents · Ctrl/Cmd+Enter to run
+          <p className={cn("font-mono text-[10px] text-zinc-500", bengaliClass)}>
+            {t.playground.meta(lineCount)}
           </p>
-          <p className="hidden font-mono text-[10px] text-zinc-500 sm:block">
-            autocomplete · auto-close brackets · real tsc on the server
+          <p className={cn("hidden font-mono text-[10px] text-zinc-500 sm:block", bengaliClass)}>
+            {t.playground.editorHint}
           </p>
         </div>
       </div>
@@ -237,31 +242,30 @@ export function Playground() {
             >
               <Terminal className="h-10 w-10 text-zinc-700" aria-hidden="true" />
             </motion.div>
-            <p className="max-w-xs text-sm text-zinc-400">
-              Press <span className="font-semibold text-emerald-400">Run</span> to compile and
-              execute this code with a real TypeScript compiler — errors, emitted JavaScript, and
-              console output appear here.
+            <p className={cn("max-w-xs text-sm text-zinc-400", bengaliClass)}>
+              {t.playground.press}{" "}
+              <span className="font-semibold text-emerald-400">{t.playground.pressRun}</span>{" "}
+              {t.playground.pressTo}
             </p>
           </div>
         ) : (
           <Tabs defaultValue="errors" className="flex min-h-0 flex-1 flex-col">
             <TabsList className="mx-3 my-2 grid w-auto grid-cols-3 bg-zinc-900">
-              <TabsTrigger value="errors" className="text-xs text-zinc-400 data-[state=active]:text-zinc-100">
-                Errors
+              <TabsTrigger value="errors" className={cn("text-xs text-zinc-400 data-[state=active]:text-zinc-100", bengaliClass)}>
+                {t.playground.tabErrors}
               </TabsTrigger>
-              <TabsTrigger value="console" className="text-xs text-zinc-400 data-[state=active]:text-zinc-100">
-                Console
+              <TabsTrigger value="console" className={cn("text-xs text-zinc-400 data-[state=active]:text-zinc-100", bengaliClass)}>
+                {t.playground.tabConsole}
               </TabsTrigger>
-              <TabsTrigger value="js" className="text-xs text-zinc-400 data-[state=active]:text-zinc-100">
-                JS output
+              <TabsTrigger value="js" className={cn("text-xs text-zinc-400 data-[state=active]:text-zinc-100", bengaliClass)}>
+                {t.playground.tabJs}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="errors" className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
               {result.diagnostics.length === 0 ? (
-                <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-400">
-                  No type errors — the compiler is happy. Check the Console tab for your program's
-                  output.
+                <p className={cn("rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-400", bengaliClass)}>
+                  {t.playground.noErrors}
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -286,12 +290,12 @@ export function Playground() {
                             aria-hidden="true"
                           />
                           <span className={d.category === "error" ? "text-rose-400" : "text-amber-400"}>
-                            TS{d.category === "error" ? " error" : " warning"}
+                            {d.category === "error" ? t.playground.tsError : "TS warning"}
                           </span>
-                          <span className="text-zinc-500">
-                            line {d.line}, col {d.character}
+                          <span className={cn("text-zinc-500", bengaliClass)}>
+                            {t.playground.lineCol(d.line, d.character)}
                           </span>
-                          <span className="ml-auto text-zinc-600">click to jump</span>
+                          <span className={cn("ml-auto text-zinc-600", bengaliClass)}>{t.playground.clickToJump}</span>
                         </p>
                         <pre className="mt-1 whitespace-pre-wrap font-mono text-xs leading-relaxed text-zinc-300">
                           {d.message}
@@ -309,8 +313,8 @@ export function Playground() {
                   {result.runtimeError}
                 </pre>
               ) : result.logs.length === 0 ? (
-                <p className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 font-mono text-xs text-zinc-500">
-                  (no output — add a console.log() and run again)
+                <p className={cn("rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 font-mono text-xs text-zinc-500", bengaliClass)}>
+                  {t.playground.emptyConsole}
                 </p>
               ) : (
                 <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-3">
@@ -330,20 +334,24 @@ export function Playground() {
             </TabsContent>
 
             <TabsContent value="js" className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-              <p className="mb-2 font-mono text-[10px] text-zinc-500">
-                compiled with tsc (target ES2020, module CommonJS) — this is what actually runs
+              <p className={cn("mb-2 font-mono text-[10px] text-zinc-500", bengaliClass)}>
+                {bn
+                  ? "tsc দিয়ে কম্পাইল হয়েছে (target ES2020, module CommonJS) — আসলে এটাই চলে"
+                  : "compiled with tsc (target ES2020, module CommonJS) — this is what actually runs"}
               </p>
               <pre className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 whitespace-pre-wrap font-mono text-xs leading-relaxed text-zinc-400">
-                {result.js || "(nothing emitted — fix the syntax errors first)"}
+                {result.js || (bn ? "(কিছু বানানো হয়নি — আগে সিনট্যাক্স এররগুলো ঠিক করুন)" : "(nothing emitted — fix the syntax errors first)")}
               </pre>
             </TabsContent>
           </Tabs>
         )}
 
         <div className="border-t border-zinc-800/80 bg-zinc-900/50 px-4 py-1.5">
-          <p className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-500">
+          <p className={cn("flex items-center gap-1.5 font-mono text-[10px] text-zinc-500", bengaliClass)}>
             <FileCode2 className="h-3 w-3" aria-hidden="true" />
-            types erased in output · strict mode on · no network access at runtime
+            {bn
+              ? "আউটপুটে টাইপ মুছে যায় · strict মোড চালু · রানটাইমে নেটওয়ার্ক নেই"
+              : "types erased in output · strict mode on · no network access at runtime"}
           </p>
         </div>
       </div>
