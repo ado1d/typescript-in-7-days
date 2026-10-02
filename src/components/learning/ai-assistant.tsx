@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Send, Sparkles, X, Trash2, CircleAlert, User } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -94,6 +98,37 @@ interface ChatMessage {
 const STORAGE_KEY = "ts7-ai-chat-v1";
 const MAX_STORED = 30;
 
+/* ---- user-resizable panel (persisted) ---- */
+const SIZE_KEY = "ts7-ai-chat-size-v1";
+const MIN_W = 320;
+const MIN_H = 380;
+
+interface PanelSize {
+  w: number;
+  h: number;
+}
+
+function clampPanelSize(w: number, h: number): PanelSize {
+  const maxW = Math.max(MIN_W, window.innerWidth - 32);
+  const maxH = Math.max(MIN_H, window.innerHeight - 32);
+  return {
+    w: Math.min(Math.max(Math.round(w), MIN_W), maxW),
+    h: Math.min(Math.max(Math.round(h), MIN_H), maxH),
+  };
+}
+
+function loadPanelSize(): PanelSize | null {
+  try {
+    const raw = window.localStorage.getItem(SIZE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { w?: unknown; h?: unknown };
+    if (typeof p.w !== "number" || typeof p.h !== "number") return null;
+    return clampPanelSize(p.w, p.h);
+  } catch {
+    return null;
+  }
+}
+
 function loadMessages(): ChatMessage[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -141,6 +176,90 @@ export function AiAssistant({ context }: AiAssistantProps) {
   const contextRef = useRef(context);
   const handledSeedRef = useRef<number>(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  /* ---- resizable panel state ---- */
+  const [panelSize, setPanelSize] = useState<PanelSize | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const gripRef = useRef<HTMLDivElement | null>(null);
+  const sizeRef = useRef<PanelSize | null>(null);
+  const gripDragRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  /* hydrate saved panel size once, clamped to the current viewport */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const s = loadPanelSize();
+      if (s) {
+        sizeRef.current = s;
+        setPanelSize(s);
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  const persistPanelSize = (s: PanelSize | null) => {
+    sizeRef.current = s;
+    try {
+      if (s) window.localStorage.setItem(SIZE_KEY, JSON.stringify(s));
+      else window.localStorage.removeItem(SIZE_KEY);
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  /* The panel is anchored bottom-right: dragging the top-left grip
+     up/left GROWS the panel. */
+  const onGripPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    e.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    gripDragRef.current = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onGripPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!gripDragRef.current) return;
+    const dx = gripDragRef.current.x - e.clientX;
+    const dy = gripDragRef.current.y - e.clientY;
+    const next = clampPanelSize(gripDragRef.current.w + dx, gripDragRef.current.h + dy);
+    sizeRef.current = next;
+    setPanelSize(next);
+  };
+
+  const onGripPointerUp = () => {
+    if (!gripDragRef.current) return;
+    gripDragRef.current = null;
+    try {
+      if (sizeRef.current) window.localStorage.setItem(SIZE_KEY, JSON.stringify(sizeRef.current));
+      else window.localStorage.removeItem(SIZE_KEY);
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const resetPanelSize = () => {
+    gripDragRef.current = null;
+    persistPanelSize(null);
+    setPanelSize(null);
+  };
+
+  const onGripKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = 48;
+    const horiz = e.key === "ArrowLeft" || e.key === "ArrowRight";
+    const vert = e.key === "ArrowUp" || e.key === "ArrowDown";
+    if (!horiz && !vert) return;
+    e.preventDefault();
+    const panel = panelRef.current;
+    const w = panel ? panel.getBoundingClientRect().width : 400;
+    const h = panel ? panel.getBoundingClientRect().height : 480;
+    const grow = e.key === "ArrowUp" || e.key === "ArrowLeft";
+    const next = clampPanelSize(
+      w + (horiz ? (grow ? step : -step) : 0),
+      h + (vert ? (grow ? step : -step) : 0)
+    );
+    persistPanelSize(next);
+    setPanelSize(next);
+  };
 
   useEffect(() => {
     contextRef.current = context;
@@ -302,14 +421,47 @@ export function AiAssistant({ context }: AiAssistantProps) {
       <AnimatePresence>
         {open && (
           <motion.section
+            ref={panelRef}
             role="dialog"
             aria-label={t.assistant.title}
             initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.97 }}
             transition={{ duration: 0.22 }}
+            style={
+              panelSize
+                ? {
+                    width: panelSize.w,
+                    height: panelSize.h,
+                    maxWidth: "calc(100vw - 2rem)",
+                    maxHeight: "calc(100vh - 2rem)",
+                  }
+                : undefined
+            }
             className="fixed bottom-4 right-4 z-50 flex max-h-[min(72vh,560px)] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl sm:bottom-6 sm:right-6"
           >
+            {/* Resize grip (desktop) — drag up/left to grow, double-click to reset */}
+            <div
+              ref={gripRef}
+              role="separator"
+              aria-label={t.assistant.resize}
+              title={t.assistant.resizeHint}
+              tabIndex={0}
+              onPointerDown={onGripPointerDown}
+              onPointerMove={onGripPointerMove}
+              onPointerUp={onGripPointerUp}
+              onLostPointerCapture={onGripPointerUp}
+              onDoubleClick={resetPanelSize}
+              onKeyDown={onGripKeyDown}
+              className="absolute left-0 top-0 z-20 hidden h-8 w-8 cursor-nwse-resize touch-none select-none items-center justify-start rounded-tl-2xl pl-1.5 pt-1.5 text-zinc-400 transition-colors hover:text-emerald-500 focus-visible:text-emerald-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-emerald-500/60 sm:flex"
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true" className="pointer-events-none">
+                <path d="M1 10 L10 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+                <path d="M1 6.5 L6.5 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+                <path d="M4.5 10 L10 4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+              </svg>
+            </div>
+
             {/* Header */}
             <div className="flex items-center gap-2.5 border-b bg-muted/40 px-4 py-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">

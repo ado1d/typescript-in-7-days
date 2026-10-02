@@ -78,6 +78,7 @@ const warmDarkTheme = EditorView.theme(
     ".cm-scroller": {
       fontFamily: MONO_STACK,
       lineHeight: "1.65",
+      overflow: "auto",
     },
     ".cm-content": {
       caretColor: "#34d399",
@@ -330,6 +331,10 @@ export function TsEditor({ value, onChange, errorLine, onReady }: TsEditorProps)
     <CodeMirror
       value={value}
       height="100%"
+      /* The @uiw wrapper div must own the container height, otherwise
+         .cm-editor's height:100% resolves against an auto-height parent,
+         the editor grows unbounded and never scrolls. */
+      className="h-full w-full"
       theme="none"
       extensions={extensions}
       onChange={onChange}

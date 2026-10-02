@@ -1,7 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { motion } from "framer-motion";
 import {
   Play,
@@ -31,6 +35,15 @@ const TsEditor = dynamic(() => import("./ts-editor").then((m) => m.TsEditor), {
   loading: () => <div className="h-full w-full animate-pulse bg-zinc-950/60" />,
 });
 
+/* ---- user-resizable editor height (persisted) ---- */
+const EDITOR_H_KEY = "ts7-editor-height-v1";
+const EDITOR_H_MIN = 320;
+
+function clampEditorHeight(h: number): number {
+  const max = Math.max(EDITOR_H_MIN, Math.floor(window.innerHeight * 0.85));
+  return Math.min(Math.max(Math.round(h), EDITOR_H_MIN), max);
+}
+
 interface DiagnosticItem {
   line: number;
   character: number;
@@ -57,6 +70,85 @@ export function Playground() {
   const [activeErrorLine, setActiveErrorLine] = useState<number | null>(null);
 
   const editorApi = useRef<TsEditorApi | null>(null);
+
+  const [editorHeight, setEditorHeight] = useState<number | null>(null);
+  const editorWrapRef = useRef<HTMLDivElement | null>(null);
+  const editorHRef = useRef<number | null>(null);
+  const editorDragRef = useRef<{ y: number; h: number } | null>(null);
+
+  /* hydrate saved editor height once, clamped to the current viewport */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const raw = window.localStorage.getItem(EDITOR_H_KEY);
+        if (raw) {
+          const n = Number(raw);
+          if (Number.isFinite(n) && n >= EDITOR_H_MIN) {
+            const clamped = clampEditorHeight(n);
+            editorHRef.current = clamped;
+            setEditorHeight(clamped);
+          }
+        }
+      } catch {
+        // storage unavailable — keep the default height
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  const saveEditorHeight = (h: number | null) => {
+    editorHRef.current = h;
+    try {
+      if (h == null) window.localStorage.removeItem(EDITOR_H_KEY);
+      else window.localStorage.setItem(EDITOR_H_KEY, String(h));
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const onEditorResizeStart = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = editorWrapRef.current;
+    if (!el) return;
+    editorDragRef.current = { y: e.clientY, h: el.getBoundingClientRect().height };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onEditorResizeMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editorDragRef.current) return;
+    const dy = e.clientY - editorDragRef.current.y;
+    const next = clampEditorHeight(editorDragRef.current.h + dy);
+    editorHRef.current = next;
+    setEditorHeight(next);
+  };
+
+  const onEditorResizeEnd = () => {
+    if (!editorDragRef.current) return;
+    editorDragRef.current = null;
+    try {
+      if (editorHRef.current == null) window.localStorage.removeItem(EDITOR_H_KEY);
+      else window.localStorage.setItem(EDITOR_H_KEY, String(editorHRef.current));
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const resetEditorHeight = () => {
+    editorDragRef.current = null;
+    saveEditorHeight(null);
+    setEditorHeight(null);
+  };
+
+  const onEditorResizeKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const base =
+      editorHeight ??
+      (editorWrapRef.current ? editorWrapRef.current.getBoundingClientRect().height : 420);
+    const next = clampEditorHeight(base + (e.key === "ArrowUp" ? 60 : -60));
+    saveEditorHeight(next);
+    setEditorHeight(next);
+  };
 
   const lineCount = useMemo(() => code.split("\n").length, [code]);
 
@@ -176,7 +268,9 @@ export function Playground() {
         </div>
 
         <div
+          ref={editorWrapRef}
           className="h-[420px] sm:h-[520px]"
+          style={editorHeight ? { height: editorHeight } : undefined}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
@@ -191,6 +285,27 @@ export function Playground() {
             onReady={(api) => {
               editorApi.current = api;
             }}
+          />
+        </div>
+
+        {/* Drag handle — resize the editor vertically */}
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={t.playground.resizeEditor}
+          title={t.playground.resizeEditorHint}
+          tabIndex={0}
+          onPointerDown={onEditorResizeStart}
+          onPointerMove={onEditorResizeMove}
+          onPointerUp={onEditorResizeEnd}
+          onLostPointerCapture={onEditorResizeEnd}
+          onDoubleClick={resetEditorHeight}
+          onKeyDown={onEditorResizeKey}
+          className="group flex h-4 cursor-ns-resize touch-none select-none items-center justify-center border-t border-zinc-800/80 bg-zinc-900/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-emerald-500/60"
+        >
+          <span
+            className="h-[3px] w-12 rounded-full bg-zinc-700 transition-colors group-hover:bg-emerald-500/70"
+            aria-hidden="true"
           />
         </div>
         <div className="flex items-center justify-between border-t border-zinc-800/80 bg-zinc-900/50 px-4 py-1.5">
