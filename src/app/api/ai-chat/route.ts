@@ -160,8 +160,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (!upstream.ok || !upstream.body) {
+    let detail = "";
+    try {
+      const errBody = (await upstream.json()) as { error?: { message?: string } };
+      detail = errBody.error?.message?.slice(0, 200) ?? "";
+    } catch {
+      // non-JSON error body
+    }
     return Response.json(
-      { error: `AI service error (HTTP ${upstream.status}).` },
+      { error: `AI service error (HTTP ${upstream.status}). ${detail}`.trim() },
       { status: 502 }
     );
   }
