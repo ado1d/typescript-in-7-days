@@ -10,7 +10,25 @@ export const maxDuration = 30;
  */
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+
+/* Primary model + automatic fallbacks, in case a model is retired server-side.
+   Validated against the account's model list (Oct 2026):
+   openai/gpt-oss-120b, qwen/qwen3.8-27b, openai/gpt-oss-20b. */
+const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+const FALLBACK_MODELS = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b"];
+
+/* Per-family extra params (validated with Groq's OpenAI-compatible API). */
+function modelOptions(model: string): Record<string, unknown> {
+  const opts: Record<string, unknown> = {};
+  if (model.startsWith("openai/gpt-oss")) {
+    // "low" keeps chat snappy; reasoning is returned separately and ignored.
+    opts.reasoning_effort = "low";
+  } else if (model.startsWith("qwen")) {
+    // Keeps <think> blocks out of the visible content on Qwen models.
+    opts.reasoning_format = "parsed";
+  }
+  return opts;
+}
 
 const MAX_MESSAGES = 20;
 const MAX_CONTENT_CHARS = 6000;
@@ -136,39 +154,56 @@ export async function POST(req: NextRequest) {
   const window = history.slice(-12);
   const context = (body.context ?? {}) as ChatContext;
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: buildSystemPrompt(context) },
-          ...window,
-        ],
-        stream: true,
-        temperature: 0.4,
-        max_tokens: 1024,
-      }),
-    });
-  } catch {
-    return Response.json({ error: "Could not reach the AI service." }, { status: 502 });
-  }
+  /* Try the primary model, then fallbacks — but only for model-not-found (404).
+     Other errors (auth, rate limit) fail fast with the upstream detail. */
+  const models = [MODEL, ...FALLBACK_MODELS.filter((m) => m !== MODEL)];
+  let upstream: Response | null = null;
+  let lastError = "";
+  let lastStatus = 0;
 
-  if (!upstream.ok || !upstream.body) {
-    let detail = "";
+  for (const model of models) {
+    let res: Response;
     try {
-      const errBody = (await upstream.json()) as { error?: { message?: string } };
-      detail = errBody.error?.message?.slice(0, 200) ?? "";
+      res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: buildSystemPrompt(context) },
+            ...window,
+          ],
+          stream: true,
+          temperature: 0.4,
+          max_tokens: 1024,
+          ...modelOptions(model),
+        }),
+      });
+    } catch {
+      return Response.json({ error: "Could not reach the AI service." }, { status: 502 });
+    }
+
+    if (res.ok && res.body) {
+      upstream = res;
+      break;
+    }
+
+    lastStatus = res.status;
+    try {
+      const errBody = (await res.json()) as { error?: { message?: string } };
+      lastError = errBody.error?.message?.slice(0, 200) ?? "";
     } catch {
       // non-JSON error body
     }
+    if (res.status !== 404) break; // only "model not found" falls through
+  }
+
+  if (!upstream || !upstream.body) {
     return Response.json(
-      { error: `AI service error (HTTP ${upstream.status}). ${detail}`.trim() },
+      { error: `AI service error (HTTP ${lastStatus}). ${lastError}`.trim() },
       { status: 502 }
     );
   }
@@ -195,8 +230,9 @@ export async function POST(req: NextRequest) {
             if (payload === "[DONE]") continue;
             try {
               const json = JSON.parse(payload) as {
-                choices?: { delta?: { content?: string } }[];
+                choices?: { delta?: { content?: string; reasoning?: string } }[];
               };
+              // Only forward visible content; gpt-oss reasoning stays separate.
               const chunk = json.choices?.[0]?.delta?.content;
               if (chunk) controller.enqueue(encoder.encode(chunk));
             } catch {
